@@ -157,21 +157,12 @@
             <!-- OUTPUT SECTION -->
             <div class="section-card">
                 <div class="section-label">OUTPUT SECTION</div>
-                <div class="progress-row">
-                    <span id="progressCount">0</span>
-                    <div class="progress-bar-container">
-                        <div id="progressBar" class="progress-bar"></div>
-                    </div>
-                    <span id="progressPct">0%</span>
+                <div class="progress" aria-label="Progress">
+                    <div class="progress__bar" id="progressBar" style="width:0%"></div>
+                    <div class="progress__pct" id="progressPct">0%</div>
                 </div>
-                <div class="output-table">
-                    <div class="output-header-row">
-                        <span class="col-no">No</span>
-                        <span class="col-prompt">Prompt</span>
-                        <span class="col-copy">Copy</span>
-                    </div>
-                    <div id="outputList" class="output-list"></div>
-                </div>
+                <textarea id="output" class="output" rows="8" placeholder="Prompt Output (JSON/Text)"
+                    readonly></textarea>
             </div>
 
             <!-- Footer -->

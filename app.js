@@ -1083,9 +1083,8 @@ async function generatePrompts() {
     btn.disabled = true;
     btn.textContent = '⏳ Generating...';
 
-    el('outputList').innerHTML = '';
+    el('output').value = '';
     el('progressBar').style.width = '0%';
-    el('progressCount').textContent = '0';
     el('progressPct').textContent = '0%';
 
     try {
@@ -1100,7 +1099,7 @@ async function generatePrompts() {
             });
 
             state.prompts.push(promptText);
-            addPromptToOutputTable(i + 1, promptText);
+            updateOutputTextarea();
 
             if (i < numPrompts - 1) {
                 await new Promise(r => setTimeout(r, 1000));
@@ -1120,15 +1119,10 @@ async function generatePrompts() {
     }
 }
 
-function addPromptToOutputTable(number, text) {
-    const item = document.createElement('div');
-    item.className = 'output-item';
-    item.innerHTML = `
-        <span class="col-no">${number}</span>
-        <span class="col-prompt">${escapeHtml(text)}</span>
-        <span class="col-copy"><button onclick="copyPrompt(${number - 1})">Copy</button></span>
-    `;
-    el('outputList').appendChild(item);
+function updateOutputTextarea() {
+    const outputEl = el('output');
+    if (!outputEl) return;
+    outputEl.value = state.prompts.map((p, i) => `#${i + 1}\n${p}`).join('\n\n');
 }
 
 function escapeHtml(text) {
@@ -1157,9 +1151,8 @@ async function copyAllPrompts() {
 
 function clearOutput() {
     state.prompts = [];
-    el('outputList').innerHTML = '';
+    el('output').value = '';
     el('progressBar').style.width = '0%';
-    el('progressCount').textContent = '0';
     el('progressPct').textContent = '0%';
 }
 
