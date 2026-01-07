@@ -568,32 +568,31 @@ Requirements:
 function updateGenerateButton() {
     const hasImage = !!state.imageDataUrl;
     const hasApiKey = !!localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
-    const hasLicense = state.licenseValid;
-
-    console.log('[DEBUG] updateGenerateButton:', { hasImage, hasApiKey, hasLicense, licenseValid: state.licenseValid });
 
     const btn = el('btnGenerate');
-    if (!btn) {
-        console.log('[DEBUG] btnGenerate not found!');
-        return;
-    }
+    if (!btn) return;
 
-    btn.disabled = !hasImage || !hasApiKey || state.isGenerating || !hasLicense;
+    // Only disable if generating or missing image/API key (no license check here)
+    btn.disabled = !hasImage || !hasApiKey || state.isGenerating;
 
-    if (!hasLicense) {
-        btn.textContent = '🔒 Activate License';
-    } else if (!hasApiKey) {
+    if (!hasApiKey) {
         btn.textContent = '⚠️ Set API Key';
     } else if (!hasImage) {
-        btn.textContent = '📷 Add Image';
+        btn.textContent = '📷 Add Image First';
     } else {
         btn.textContent = '▶ Generate Prompts';
     }
-    console.log('[DEBUG] Button updated:', btn.textContent, 'disabled:', btn.disabled);
 }
 
 async function generatePrompts() {
-    if (state.isGenerating || !state.imageDataUrl || !state.licenseValid) return;
+    // Check license first - show modal if not licensed
+    if (!state.licenseValid) {
+        showLicenseModal(true);
+        showToast('Please activate your license first', 'error');
+        return;
+    }
+
+    if (state.isGenerating || !state.imageDataUrl) return;
 
     const numPrompts = parseInt(el('numPrompts').value) || 2;
     const templatePreset = el('templatePreset')?.value;
