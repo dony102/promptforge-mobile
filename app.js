@@ -1147,6 +1147,158 @@ function clearOutput() {
 }
 
 // ========================================
+// History Management
+// ========================================
+const HISTORY_KEY = 'pf_prompt_history';
+const MAX_HISTORY = 100;
+
+function getHistory() {
+    try {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    } catch {
+        return [];
+    }
+}
+
+function saveToHistory(imageDataUrl, prompts) {
+    if (!prompts || prompts.length === 0) return;
+
+    const history = getHistory();
+    const entry = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        prompts: prompts,
+        imageThumb: imageDataUrl ? imageDataUrl.substring(0, 100) + '...' : null, // Just store hint, not full image
+        favorite: false
+    };
+
+    history.unshift(entry);
+
+    // Keep only recent entries
+    while (history.length > MAX_HISTORY) {
+        history.pop();
+    }
+
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    renderHistoryList();
+}
+
+function renderHistoryList() {
+    const container = el('historyList');
+    if (!container) return;
+
+    const history = getHistory();
+    const searchTerm = (el('historySearch')?.value || '').toLowerCase();
+    const showFavsOnly = el('historyShowFavs')?.checked || false;
+
+    let filtered = history;
+
+    if (searchTerm) {
+        filtered = filtered.filter(h =>
+            h.prompts.some(p => p.toLowerCase().includes(searchTerm))
+        );
+    }
+
+    if (showFavsOnly) {
+        filtered = filtered.filter(h => h.favorite);
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="history-empty">No prompts found. Generate some!</div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(entry => {
+        const date = new Date(entry.timestamp);
+        const dateStr = date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        const timeStr = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const promptPreview = entry.prompts[0]?.substring(0, 150) + (entry.prompts[0]?.length > 150 ? '...' : '');
+        const promptCount = entry.prompts.length;
+
+        return `
+            <div class="history-item" data-id="${entry.id}">
+                <div class="history-item-header">
+                    <span class="history-date">${dateStr} ${timeStr}</span>
+                    <span class="history-count">${promptCount} prompt${promptCount > 1 ? 's' : ''}</span>
+                    <button class="btn-fav ${entry.favorite ? 'active' : ''}" onclick="toggleHistoryFav(${entry.id})">
+                        ${entry.favorite ? '⭐' : '☆'}
+                    </button>
+                </div>
+                <div class="history-prompt" onclick="loadHistoryItem(${entry.id})">${escapeHtml(promptPreview)}</div>
+                <div class="history-actions-row">
+                    <button onclick="copyHistoryPrompts(${entry.id})">📋 Copy All</button>
+                    <button onclick="deleteHistoryItem(${entry.id})">🗑️</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleHistoryFav(id) {
+    const history = getHistory();
+    const item = history.find(h => h.id === id);
+    if (item) {
+        item.favorite = !item.favorite;
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        renderHistoryList();
+    }
+}
+
+function loadHistoryItem(id) {
+    const history = getHistory();
+    const item = history.find(h => h.id === id);
+    if (item) {
+        state.prompts = item.prompts;
+        el('outputList').innerHTML = '';
+        item.prompts.forEach((p, i) => addPromptToOutputTable(i + 1, p));
+
+        // Switch to main tab
+        document.querySelectorAll('.ae-tab').forEach(t => t.classList.remove('is-active'));
+        document.querySelectorAll('.ae-panel').forEach(p => p.classList.remove('is-active'));
+        document.querySelector('[data-target="pgTab"]')?.classList.add('is-active');
+        el('pgTab')?.classList.add('is-active');
+
+        showToast('Prompts loaded! 📜', 'success');
+    }
+}
+
+async function copyHistoryPrompts(id) {
+    const history = getHistory();
+    const item = history.find(h => h.id === id);
+    if (item) {
+        const text = item.prompts.map((p, i) => `#${i + 1}\n${p}`).join('\n\n');
+        await copyToClipboard(text);
+        showToast('Prompts copied! 📋', 'success');
+    }
+}
+
+function deleteHistoryItem(id) {
+    const history = getHistory().filter(h => h.id !== id);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    renderHistoryList();
+    showToast('Entry deleted', 'success');
+}
+
+function clearAllHistory() {
+    if (confirm('Delete all history? This cannot be undone.')) {
+        localStorage.removeItem(HISTORY_KEY);
+        renderHistoryList();
+        showToast('History cleared', 'success');
+    }
+}
+
+function exportHistory() {
+    const history = getHistory();
+    if (history.length === 0) {
+        showToast('No history to export', 'error');
+        return;
+    }
+    const content = JSON.stringify(history, null, 2);
+    downloadFile(content, 'promptforge-history.json', 'application/json');
+    showToast('History exported!', 'success');
+}
+
+// ========================================
 // Template Preset Functions
 // ========================================
 function applyTemplatePreset(presetName) {
@@ -1439,6 +1591,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.key === 'Enter') addGeminiKey();
     });
 
+    // History tab handlers
+    el('historySearch')?.addEventListener('input', renderHistoryList);
+    el('historyShowFavs')?.addEventListener('change', renderHistoryList);
+    el('btnClearHistory')?.addEventListener('click', clearAllHistory);
+    el('btnExportHistory')?.addEventListener('click', exportHistory);
+
+    // Initial history render
+    renderHistoryList();
+
     // Global paste listener
     document.addEventListener('paste', async (e) => {
         const items = e.clipboardData?.items;
@@ -1460,7 +1621,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Expose functions for onclick
 window.copyPrompt = copyPrompt;
-window.loadHistory = loadHistory;
 window.copyMachineId = copyMachineId;
 window.activateLicense = activateLicense;
 window.removeGeminiKey = removeGeminiKey;
+window.toggleHistoryFav = toggleHistoryFav;
+window.loadHistoryItem = loadHistoryItem;
+window.copyHistoryPrompts = copyHistoryPrompts;
+window.deleteHistoryItem = deleteHistoryItem;
