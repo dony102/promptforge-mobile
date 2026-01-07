@@ -26,6 +26,46 @@ let state = {
     licenseValid: false
 };
 
+// Template Preset Configurations
+const TEMPLATE_PRESETS = {
+    product: {
+        style: 'realistic',
+        aspectRatio: '1:1',
+        prefix: '',
+        params: '--style raw --no human, isolated on white background'
+    },
+    character: {
+        style: 'fantasy',
+        aspectRatio: '3:2',
+        prefix: '',
+        params: 'full body, detailed, character design'
+    },
+    logo: {
+        style: 'minimalist',
+        aspectRatio: '1:1',
+        prefix: '',
+        params: 'vector, clean lines, simple, iconic'
+    },
+    landscape: {
+        style: 'cinematic',
+        aspectRatio: '16:9',
+        prefix: '',
+        params: 'wide angle, cinematic lighting, epic'
+    },
+    portrait: {
+        style: 'realistic',
+        aspectRatio: '3:2',
+        prefix: '',
+        params: 'portrait photography, professional lighting'
+    },
+    anime: {
+        style: 'anime',
+        aspectRatio: '9:16',
+        prefix: '',
+        params: 'anime style, detailed, vibrant colors'
+    }
+};
+
 // ========================================
 // Utility Functions
 // ========================================
@@ -631,6 +671,84 @@ function clearOutput() {
 }
 
 // ========================================
+// Template Preset Functions
+// ========================================
+function applyTemplatePreset(presetName) {
+    if (!presetName || !TEMPLATE_PRESETS[presetName]) return;
+
+    const preset = TEMPLATE_PRESETS[presetName];
+
+    if (preset.style) el('styleSelect').value = preset.style;
+    if (preset.aspectRatio) el('aspectRatio').value = preset.aspectRatio;
+    if (preset.prefix !== undefined) el('prefixInput').value = preset.prefix;
+    if (preset.params !== undefined) el('extraParams').value = preset.params;
+
+    showToast(`Applied ${presetName} preset`, 'success');
+}
+
+// ========================================
+// Export Functions
+// ========================================
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function exportPrompts() {
+    if (state.prompts.length === 0) {
+        showToast('No prompts to export', 'error');
+        return;
+    }
+
+    const format = el('exportFormat')?.value || 'json';
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const prefix = el('prefixInput')?.value.trim() || '';
+
+    // Apply prefix if set
+    const promptsWithPrefix = state.prompts.map(p => prefix ? `${prefix} ${p}` : p);
+
+    let content, filename, mimeType;
+
+    switch (format) {
+        case 'json':
+            content = JSON.stringify({
+                generated: new Date().toISOString(),
+                count: promptsWithPrefix.length,
+                prompts: promptsWithPrefix
+            }, null, 2);
+            filename = `promptforge-${timestamp}.json`;
+            mimeType = 'application/json';
+            break;
+
+        case 'txt':
+            content = promptsWithPrefix.map((p, i) => `#${i + 1}\n${p}`).join('\n\n---\n\n');
+            filename = `promptforge-${timestamp}.txt`;
+            mimeType = 'text/plain';
+            break;
+
+        case 'csv':
+            content = 'Number,Prompt\n' +
+                promptsWithPrefix.map((p, i) => `${i + 1},"${p.replace(/"/g, '""')}"`).join('\n');
+            filename = `promptforge-${timestamp}.csv`;
+            mimeType = 'text/csv';
+            break;
+
+        default:
+            return;
+    }
+
+    downloadFile(content, filename, mimeType);
+    showToast(`Exported ${state.prompts.length} prompts as ${format.toUpperCase()}`, 'success');
+}
+
+// ========================================
 // History Management
 // ========================================
 function getHistory() {
@@ -784,6 +902,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Clear history
     el('btnClearHistory').addEventListener('click', clearHistory);
+
+    // Template preset
+    el('templatePreset')?.addEventListener('change', (e) => {
+        applyTemplatePreset(e.target.value);
+    });
+
+    // Export button
+    el('btnExport')?.addEventListener('click', exportPrompts);
 
     // License handlers
     el('btnCopyMachineId')?.addEventListener('click', copyMachineId);

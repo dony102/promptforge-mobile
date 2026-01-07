@@ -91,6 +91,21 @@
         <!-- Generation Options -->
         <section class="card options-card">
             <h2 class="card-title">⚙️ Options</h2>
+
+            <!-- Template Preset -->
+            <div class="form-group full-width">
+                <label for="templatePreset">📋 Template Preset</label>
+                <select id="templatePreset" class="form-select">
+                    <option value="">(custom settings)</option>
+                    <option value="product">🛍️ Product Photography</option>
+                    <option value="character">👤 Character Design</option>
+                    <option value="logo">🎨 Logo / Icon Design</option>
+                    <option value="landscape">🏞️ Landscape / Scene</option>
+                    <option value="portrait">📷 Portrait / Headshot</option>
+                    <option value="anime">🎌 Anime / Illustration</option>
+                </select>
+            </div>
+
             <div class="options-grid">
                 <div class="form-group">
                     <label for="numPrompts">Jumlah Output</label>
@@ -112,8 +127,10 @@
                         <option value="">(none)</option>
                         <option value="16:9">16:9</option>
                         <option value="9:16">9:16 (Portrait)</option>
-                        <option value="1:1">1:1 (Square)</option>
+                        <option value="5:3">5:3</option>
                         <option value="4:3">4:3</option>
+                        <option value="3:2">3:2</option>
+                        <option value="1:1">1:1 (Square)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -124,13 +141,26 @@
                         <option value="anime">🎌 Anime</option>
                         <option value="realistic">📷 Realistic</option>
                         <option value="minimalist">✨ Minimalist</option>
+                        <option value="vintage">📼 Vintage</option>
                         <option value="fantasy">🐉 Fantasy</option>
+                        <option value="scifi">🚀 Sci-Fi</option>
+                        <option value="watercolor">🎨 Watercolor</option>
+                        <option value="oilpainting">🖌️ Oil Painting</option>
+                        <option value="3d">💎 3D Render</option>
                     </select>
                 </div>
             </div>
-            <div class="form-group full-width">
-                <label for="extraParams">Extra Parameters</label>
-                <input type="text" id="extraParams" class="form-input" placeholder="--style raw --no human">
+
+            <!-- Prefix & Parameters -->
+            <div class="options-grid">
+                <div class="form-group">
+                    <label for="prefixInput">Prefix</label>
+                    <input type="text" id="prefixInput" class="form-input" placeholder="/imagine:">
+                </div>
+                <div class="form-group">
+                    <label for="extraParams">Parameter</label>
+                    <input type="text" id="extraParams" class="form-input" placeholder="--style raw --no human">
+                </div>
             </div>
         </section>
 
@@ -158,6 +188,16 @@
                 </div>
             </div>
             <div id="promptsList" class="prompts-list"></div>
+
+            <!-- Export Row -->
+            <div class="export-row">
+                <select id="exportFormat" class="export-select">
+                    <option value="json">📋 JSON</option>
+                    <option value="txt">📄 TXT</option>
+                    <option value="csv">📊 CSV</option>
+                </select>
+                <button id="btnExport" class="btn-export">📥 Export</button>
+            </div>
         </section>
 
         <!-- History Section -->
