@@ -3,7 +3,7 @@
  * Enables offline caching and PWA installation
  */
 
-const CACHE_NAME = 'promptforge-mobile-v4';
+const CACHE_NAME = 'promptforge-mobile-v5';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

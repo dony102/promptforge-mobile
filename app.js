@@ -570,7 +570,14 @@ function updateGenerateButton() {
     const hasApiKey = !!localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
     const hasLicense = state.licenseValid;
 
+    console.log('[DEBUG] updateGenerateButton:', { hasImage, hasApiKey, hasLicense, licenseValid: state.licenseValid });
+
     const btn = el('btnGenerate');
+    if (!btn) {
+        console.log('[DEBUG] btnGenerate not found!');
+        return;
+    }
+
     btn.disabled = !hasImage || !hasApiKey || state.isGenerating || !hasLicense;
 
     if (!hasLicense) {
@@ -582,6 +589,7 @@ function updateGenerateButton() {
     } else {
         btn.textContent = '▶ Generate Prompts';
     }
+    console.log('[DEBUG] Button updated:', btn.textContent, 'disabled:', btn.disabled);
 }
 
 async function generatePrompts() {
@@ -849,7 +857,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await generateMachineId();
     const isLicensed = await checkLicense();
 
-    if (!isLicensed) {
+    console.log('[DEBUG] Init - isLicensed:', isLicensed, 'state.licenseValid:', state.licenseValid);
+
+    if (isLicensed) {
+        // License valid - ensure UI is unlocked
+        setUILocked(false);
+    } else {
+        // License not valid - show modal
         setUILocked(true);
     }
 
