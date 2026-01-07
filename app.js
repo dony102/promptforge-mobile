@@ -496,32 +496,103 @@ async function callGeminiAPI(imageDataUrl, options) {
     const mimeType = `image/${base64Match[1]}`;
     const base64Data = base64Match[2];
 
-    let prompt = `You are an expert AI prompt engineer. Analyze this image and generate a creative, detailed prompt that could recreate it using an AI image generator like Midjourney or DALL-E.
+    // Build system prompt based on output format (matching Extension quality)
+    let systemPrompt;
 
-Requirements:
-- Maximum ${options.maxChars} characters
-- Be descriptive about style, lighting, composition, colors, mood
-- Use comma-separated keywords/phrases
-- Do NOT include any explanations, just the prompt itself`;
+    if (options.outputFormat === 'json') {
+        // JSON format - structured output
+        systemPrompt = `You are an elite creative prompt engineer specializing in AI video/image generation and cinematic scene description.
 
-    if (options.aspectRatio) {
-        prompt += `\n- Include aspect ratio: ${options.aspectRatio}`;
+TASK: Analyze the attached image and generate a STRUCTURED JSON object describing it comprehensively.
+
+OUTPUT FORMAT - Return ONLY valid JSON with this exact structure:
+{
+  "scene_description": "A comprehensive one-paragraph description of the main scene, subject, and overall visual impression.",
+  "visual_elements": {
+    "weather": "Description of weather conditions if applicable (rain, snow, fog, clear, etc.) or 'N/A'",
+    "environment": "Detailed description of the setting, location, background elements, atmosphere",
+    "lighting": "Light type, direction, quality, color temperature, shadows, highlights",
+    "style": "Photography/art style, aesthetic, mood, tone, color grading"
+  },
+  "camera_control": {
+    "motion": "Suggested camera motion (static, pan, tilt, tracking, etc.)",
+    "shot_type": "Wide shot, medium shot, close-up, extreme close-up, etc.",
+    "angle": "Eye-level, low angle, high angle, bird's eye, dutch angle, etc.",
+    "depth_of_field": "Shallow bokeh, deep focus, selective focus, etc."
+  },
+  "color_palette": {
+    "dominant_colors": "Main colors in the scene",
+    "accents": "Highlight and accent colors",
+    "mood": "Warm, cool, neutral, vibrant, muted, etc."
+  },
+  "textures_materials": "Description of visible textures and materials (rough, smooth, metallic, organic, etc.)",
+  "audio_suggestion": {
+    "ambience": "Suggested ambient sounds for the scene",
+    "music_mood": "Suggested music mood/style if applicable"
+  }
+}
+
+REQUIREMENTS:
+- Return ONLY the JSON object, no markdown, no code blocks, no explanation
+- All values must be strings
+- Be specific and detailed in each field
+- Use professional, evocative language suitable for AI generation`;
+    } else {
+        // TXT format - detailed single paragraph
+        systemPrompt = `You are an elite creative prompt engineer specializing in AI image generation (Midjourney, DALL-E, Ideogram, Stable Diffusion) and commercial microstock photography.
+
+TASK: Analyze the attached image and generate ONE comprehensive, highly-detailed prompt that could recreate or describe it perfectly.
+
+REQUIREMENTS - Include ALL applicable elements:
+📷 CAMERA & COMPOSITION:
+- Camera angle (eye-level, bird's eye, low angle, dutch angle, overhead, worm's eye)
+- Shot type (extreme close-up, close-up, medium shot, full shot, wide shot, establishing shot)
+- Depth of field (shallow/bokeh, deep focus, selective focus)
+- Framing & rule of thirds
+
+🎨 VISUAL STYLE:
+- Photography style (editorial, commercial, documentary, lifestyle, fine art, cinematic)
+- Aesthetic (minimalist, maximalist, vintage, modern, rustic, industrial, elegant)
+- Art direction mood (energetic, calm, dramatic, warm, cold, mysterious)
+
+💡 LIGHTING:
+- Light type (natural sunlight, golden hour, blue hour, studio lighting, dramatic shadows)
+- Light direction (front, side, back, rim light, diffused, hard shadows)
+- Light quality (soft, harsh, moody, high-key, low-key)
+
+🎨 COLOR & TEXTURE:
+- Dominant color palette (warm tones, cool tones, complementary, monochromatic)
+- Color accents and highlights
+- Surface textures and materials (matte, glossy, rough, smooth, metallic)
+
+🌍 ENVIRONMENT & CONTEXT:
+- Setting/location details
+- Background elements and atmosphere
+- Time of day, weather, season if relevant
+
+OUTPUT FORMAT:
+- Return ONLY the prompt as a single flowing paragraph
+- No numbering, no quotes, no bullet points
+- Target length: ${Math.floor((options.maxChars || 250) * 0.85)} to ${options.maxChars || 250} characters
+- Prioritize visual richness and concrete descriptors over generic terms
+- Make it suitable for professional AI image generators`;
     }
 
+    // Add style and aspect ratio hints
     if (options.style) {
-        prompt += `\n- Apply ${options.style} style`;
+        systemPrompt += `\n\nAPPLY STYLE: ${options.style}`;
     }
-
+    if (options.aspectRatio) {
+        systemPrompt += `\n\nASPECT RATIO: ${options.aspectRatio}`;
+    }
     if (options.extraParams) {
-        prompt += `\n- End with these parameters: ${options.extraParams}`;
+        systemPrompt += `\n\nINCLUDE PARAMETERS: ${options.extraParams}`;
     }
-
-    prompt += '\n\nGenerate the prompt now:';
 
     const requestBody = {
         contents: [{
             parts: [
-                { text: prompt },
+                { text: systemPrompt },
                 {
                     inline_data: {
                         mime_type: mimeType,
@@ -596,6 +667,7 @@ async function generatePrompts() {
 
     const numPrompts = parseInt(el('numPrompts').value) || 2;
     const templatePreset = el('templatePreset')?.value;
+    const outputFormat = el('exportFormat')?.value || 'txt'; // Get output format
 
     // Get preset config or use defaults
     const preset = TEMPLATE_PRESETS[templatePreset] || {};
@@ -624,7 +696,7 @@ async function generatePrompts() {
             el('progressPct').textContent = `${percent}%`;
 
             const promptText = await callGeminiAPI(state.imageDataUrl, {
-                maxChars, aspectRatio, style, extraParams
+                maxChars, aspectRatio, style, extraParams, outputFormat
             });
 
             state.prompts.push(promptText);
