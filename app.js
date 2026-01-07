@@ -8,17 +8,22 @@
 // Configuration & State
 // ========================================
 const CONFIG = {
+    LICENSE_SECRET: 'PromptForge-2026-MAnggi-Secret',
     STORAGE_KEYS: {
         API_KEY: 'pf_gemini_key',
         MODEL: 'pf_gemini_model',
-        HISTORY: 'pf_history'
+        HISTORY: 'pf_history',
+        LICENSE_KEY: 'pf_license_key',
+        MACHINE_ID: 'pf_machine_id'
     }
 };
 
 let state = {
     imageDataUrl: null,
     isGenerating: false,
-    prompts: []
+    prompts: [],
+    machineId: null,
+    licenseValid: false
 };
 
 // ========================================
@@ -54,6 +59,170 @@ function formatDate(date) {
         day: 'numeric', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
     });
+}
+
+// ========================================
+// LICENSE SYSTEM - Device ID Based
+// ========================================
+
+// Generate unique Machine ID from browser fingerprint
+async function generateMachineId() {
+    // Check if we already have one stored
+    const stored = localStorage.getItem(CONFIG.STORAGE_KEYS.MACHINE_ID);
+    if (stored) {
+        state.machineId = stored;
+        return stored;
+    }
+
+    try {
+        // Collect browser fingerprint data
+        const data = [
+            navigator.userAgent,
+            navigator.language,
+            screen.width + 'x' + screen.height,
+            screen.colorDepth,
+            new Date().getTimezoneOffset(),
+            navigator.hardwareConcurrency || 'unknown',
+            navigator.platform,
+            // Add some randomness for uniqueness
+            Math.random().toString(36).substring(2, 8)
+        ].join('|');
+
+        // Create hash using SubtleCrypto
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(data);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        // Format as readable machine ID
+        state.machineId = hashHex.substring(0, 16).toUpperCase().match(/.{4}/g).join('-');
+
+        // Store it permanently
+        localStorage.setItem(CONFIG.STORAGE_KEYS.MACHINE_ID, state.machineId);
+
+        return state.machineId;
+    } catch (e) {
+        console.error('Machine ID generation failed:', e);
+        // Fallback to random ID
+        state.machineId = 'XXXX-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' +
+            Math.random().toString(36).substring(2, 6).toUpperCase() + '-' +
+            Math.random().toString(36).substring(2, 6).toUpperCase();
+        localStorage.setItem(CONFIG.STORAGE_KEYS.MACHINE_ID, state.machineId);
+        return state.machineId;
+    }
+}
+
+// Generate expected license key from machine ID (must match admin tool)
+function generateMachineHash(machineId) {
+    let hash = 0;
+    const combined = machineId + CONFIG.LICENSE_SECRET;
+    for (let i = 0; i < combined.length; i++) {
+        const char = combined.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash);
+}
+
+// Validate license key format and check against machine ID
+function validateLicenseKey(machineId, licenseKey) {
+    if (!machineId || !licenseKey) return false;
+
+    // License format: PF-XXXX-XXXX-XXXX-XXXX-XXXX
+    const cleanKey = licenseKey.toUpperCase().trim();
+    if (!cleanKey.startsWith('PF-')) return false;
+
+    const parts = cleanKey.split('-');
+    if (parts.length !== 6) return false;
+
+    // Validate using hash
+    const hash = generateMachineHash(machineId);
+    const segment1 = (hash % 10000).toString().padStart(4, '0');
+    const segment2 = ((hash >> 4) % 10000).toString().padStart(4, '0');
+    const segment3 = ((hash >> 8) % 10000).toString().padStart(4, '0');
+
+    // Check first 3 segments match
+    return parts[1] === segment1 && parts[2] === segment2 && parts[3] === segment3;
+}
+
+// Check if license is valid
+async function checkLicense() {
+    const machineId = await generateMachineId();
+    const licenseKey = localStorage.getItem(CONFIG.STORAGE_KEYS.LICENSE_KEY);
+
+    if (licenseKey && validateLicenseKey(machineId, licenseKey)) {
+        state.licenseValid = true;
+        return true;
+    }
+
+    state.licenseValid = false;
+    return false;
+}
+
+// Show/hide license modal
+function showLicenseModal(show = true) {
+    const modal = el('licenseModal');
+    if (modal) {
+        modal.style.display = show ? 'flex' : 'none';
+    }
+
+    // Update machine ID display
+    if (show && state.machineId) {
+        el('machineIdDisplay').textContent = state.machineId;
+    }
+}
+
+// Lock/unlock main UI
+function setUILocked(locked) {
+    const mainContent = el('mainContent');
+    if (locked) {
+        if (mainContent) {
+            mainContent.style.filter = 'blur(5px)';
+            mainContent.style.pointerEvents = 'none';
+        }
+        showLicenseModal(true);
+    } else {
+        if (mainContent) {
+            mainContent.style.filter = '';
+            mainContent.style.pointerEvents = '';
+        }
+        showLicenseModal(false);
+    }
+}
+
+// Activate license
+async function activateLicense() {
+    const input = el('licenseKeyInput');
+    const status = el('licenseStatus');
+    const licenseKey = (input?.value || '').trim();
+
+    if (!licenseKey) {
+        status.innerHTML = '<span style="color:#f38ba8">Please enter a license key</span>';
+        return;
+    }
+
+    const machineId = state.machineId || await generateMachineId();
+    const isValid = validateLicenseKey(machineId, licenseKey);
+
+    if (isValid) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.LICENSE_KEY, licenseKey.toUpperCase().trim());
+        state.licenseValid = true;
+        status.innerHTML = '<span style="color:#a6e3a1">✅ License activated successfully!</span>';
+        showToast('License activated! 🎉', 'success');
+        setTimeout(() => setUILocked(false), 1000);
+    } else {
+        status.innerHTML = '<span style="color:#f38ba8">❌ Invalid license key</span>';
+        showToast('Invalid license key', 'error');
+    }
+}
+
+// Copy machine ID
+async function copyMachineId() {
+    if (state.machineId) {
+        await copyToClipboard(state.machineId);
+        showToast('Machine ID copied! 📋', 'success');
+    }
 }
 
 // ========================================
@@ -102,7 +271,6 @@ async function handleImageFile(file) {
     }
 
     try {
-        // Compress image if needed
         const dataUrl = await compressImage(file, 1024, 0.85);
         setPreviewImage(dataUrl);
     } catch (err) {
@@ -117,7 +285,6 @@ async function compressImage(file, maxSize, quality) {
             let width = img.width;
             let height = img.height;
 
-            // Resize if needed
             if (width > maxSize || height > maxSize) {
                 if (width > height) {
                     height = Math.round(height * maxSize / width);
@@ -143,10 +310,8 @@ async function compressImage(file, maxSize, quality) {
 
 function setPreviewImage(dataUrl) {
     state.imageDataUrl = dataUrl;
-
     const preview = el('preview');
     preview.innerHTML = `<img src="${dataUrl}" alt="Preview">`;
-
     updateGenerateButton();
 }
 
@@ -161,7 +326,6 @@ function clearPreview() {
     updateGenerateButton();
 }
 
-// Handle paste
 async function handlePaste() {
     try {
         const items = await navigator.clipboard.read();
@@ -215,18 +379,15 @@ async function extractImageFromUrl() {
     try {
         let imageUrl;
 
-        // Check YouTube
         const ytId = extractYouTubeId(url);
         if (ytId) {
             imageUrl = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
         } else if (url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)) {
-            // Direct image URL
             imageUrl = url;
         } else {
             throw new Error('Unsupported URL. Use YouTube or direct image URL.');
         }
 
-        // Load image
         const dataUrl = await loadImageAsDataUrl(imageUrl);
         setPreviewImage(dataUrl);
 
@@ -276,7 +437,6 @@ async function callGeminiAPI(imageDataUrl, options) {
         throw new Error('Please set your Gemini API key in Settings');
     }
 
-    // Extract base64 from data URL
     const base64Match = imageDataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
     if (!base64Match) {
         throw new Error('Invalid image data');
@@ -285,7 +445,6 @@ async function callGeminiAPI(imageDataUrl, options) {
     const mimeType = `image/${base64Match[1]}`;
     const base64Data = base64Match[2];
 
-    // Build prompt
     let prompt = `You are an expert AI prompt engineer. Analyze this image and generate a creative, detailed prompt that could recreate it using an AI image generator like Midjourney or DALL-E.
 
 Requirements:
@@ -358,11 +517,14 @@ Requirements:
 function updateGenerateButton() {
     const hasImage = !!state.imageDataUrl;
     const hasApiKey = !!localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+    const hasLicense = state.licenseValid;
 
     const btn = el('btnGenerate');
-    btn.disabled = !hasImage || !hasApiKey || state.isGenerating;
+    btn.disabled = !hasImage || !hasApiKey || state.isGenerating || !hasLicense;
 
-    if (!hasApiKey) {
+    if (!hasLicense) {
+        btn.querySelector('.btn-text').textContent = '🔒 Activate License First';
+    } else if (!hasApiKey) {
         btn.querySelector('.btn-text').textContent = '⚠️ Set API Key First';
     } else if (!hasImage) {
         btn.querySelector('.btn-text').textContent = '📷 Add Image First';
@@ -372,7 +534,7 @@ function updateGenerateButton() {
 }
 
 async function generatePrompts() {
-    if (state.isGenerating || !state.imageDataUrl) return;
+    if (state.isGenerating || !state.imageDataUrl || !state.licenseValid) return;
 
     const numPrompts = parseInt(el('numPrompts').value) || 2;
     const maxChars = parseInt(el('maxChars').value) || 250;
@@ -383,7 +545,6 @@ async function generatePrompts() {
     state.isGenerating = true;
     state.prompts = [];
 
-    // UI updates
     el('btnGenerate').disabled = true;
     el('btnGenerate').querySelector('.btn-text').style.display = 'none';
     el('btnGenerate').querySelector('.btn-loading').style.display = 'inline';
@@ -397,30 +558,23 @@ async function generatePrompts() {
 
     try {
         for (let i = 0; i < numPrompts; i++) {
-            // Update progress
             const percent = ((i + 1) / numPrompts) * 100;
             progressFill.style.width = `${percent}%`;
             progressText.textContent = `${i + 1} / ${numPrompts}`;
 
-            // Generate
             const promptText = await callGeminiAPI(state.imageDataUrl, {
                 maxChars, aspectRatio, style, extraParams
             });
 
             state.prompts.push(promptText);
-
-            // Add to UI
             addPromptToList(i + 1, promptText);
 
-            // Small delay between requests
             if (i < numPrompts - 1) {
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
 
-        // Save to history
         saveToHistory(state.imageDataUrl, state.prompts);
-
         showToast(`Generated ${numPrompts} prompts! ✨`, 'success');
 
     } catch (err) {
@@ -490,20 +644,15 @@ function getHistory() {
 function saveToHistory(imageDataUrl, prompts) {
     const history = getHistory();
 
-    // Create thumbnail (smaller version)
-    const thumbnail = imageDataUrl; // Could resize for storage efficiency
-
     history.unshift({
         id: Date.now(),
-        thumbnail,
+        thumbnail: imageDataUrl,
         prompts,
         date: new Date().toISOString()
     });
 
-    // Keep only last 20
     const trimmed = history.slice(0, 20);
     localStorage.setItem(CONFIG.STORAGE_KEYS.HISTORY, JSON.stringify(trimmed));
-
     renderHistory();
 }
 
@@ -530,11 +679,9 @@ function loadHistory(id) {
     const item = history.find(h => h.id === parseInt(id));
 
     if (item) {
-        // Load image and prompts
         setPreviewImage(item.thumbnail);
         state.prompts = item.prompts;
 
-        // Show prompts
         el('outputSection').style.display = 'block';
         el('promptsList').innerHTML = '';
         item.prompts.forEach((p, i) => addPromptToList(i + 1, p));
@@ -563,12 +710,21 @@ if ('serviceWorker' in navigator) {
 }
 
 // ========================================
-// Event Listeners & Init
+// Initialization
 // ========================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize license system first
+    await generateMachineId();
+    const isLicensed = await checkLicense();
+
+    if (!isLicensed) {
+        setUILocked(true);
+    }
+
     // Load saved settings
     loadSettings();
     renderHistory();
+    updateGenerateButton();
 
     // Settings toggle
     el('settingsToggle').addEventListener('click', () => {
@@ -629,6 +785,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Clear history
     el('btnClearHistory').addEventListener('click', clearHistory);
 
+    // License handlers
+    el('btnCopyMachineId')?.addEventListener('click', copyMachineId);
+    el('btnActivateLicense')?.addEventListener('click', activateLicense);
+    el('licenseKeyInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') activateLicense();
+    });
+
     // Global paste listener
     document.addEventListener('paste', async (e) => {
         const items = e.clipboardData?.items;
@@ -651,3 +814,5 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose functions for onclick
 window.copyPrompt = copyPrompt;
 window.loadHistory = loadHistory;
+window.copyMachineId = copyMachineId;
+window.activateLicense = activateLicense;

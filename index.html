@@ -25,7 +25,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="main-content">
+    <main id="mainContent" class="main-content">
         <!-- API Settings Card (Collapsible) -->
         <section id="settingsCard" class="card settings-card collapsed">
             <div class="card-header" id="settingsToggle">
@@ -179,6 +179,41 @@
 
     <!-- Toast -->
     <div id="toast" class="toast"></div>
+
+    <!-- License Activation Modal -->
+    <div id="licenseModal" class="license-modal" style="display:none">
+        <div class="license-modal-box">
+            <div class="license-modal-header">
+                <h2>🔐 PromptForge License</h2>
+                <p>Activate your license to use this app</p>
+            </div>
+
+            <div class="license-modal-body">
+                <div class="license-field">
+                    <label>Your Device ID:</label>
+                    <div class="machine-id-row">
+                        <code id="machineIdDisplay">Loading...</code>
+                        <button id="btnCopyMachineId" class="btn-copy-id" title="Copy Device ID">📋</button>
+                    </div>
+                    <small>Send this ID to admin to get your license key</small>
+                </div>
+
+                <div class="license-field">
+                    <label>License Key:</label>
+                    <input type="text" id="licenseKeyInput" class="license-input"
+                        placeholder="PF-XXXX-XXXX-XXXX-XXXX-XXXX">
+                </div>
+
+                <div id="licenseStatus" class="license-status"></div>
+
+                <button id="btnActivateLicense" class="btn-activate">✅ Activate License</button>
+            </div>
+
+            <div class="license-modal-footer">
+                <small>© 2026 Muhammad Anggi - PromptForge</small>
+            </div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
