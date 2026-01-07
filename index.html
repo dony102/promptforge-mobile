@@ -52,10 +52,16 @@
                             <option value="gemini-2.0-flash">2.0 Flash</option>
                         </select>
                     </div>
-                    <div class="api-input-row">
-                        <input type="password" id="geminiKey" placeholder="Paste Gemini API key...">
-                        <button id="btnToggleKey" class="btn-icon">👁️</button>
-                        <button id="btnSaveSettings" class="save-btn">💾</button>
+                    <div class="api-input-row" style="flex-direction: column; gap: 8px;">
+                        <textarea id="geminiKey" placeholder="Paste API keys (satu per baris atau pisah dengan koma)..."
+                            rows="3"
+                            style="width: 100%; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btnToggleKey" class="btn-icon">👁️</button>
+                            <button id="btnSaveSettings" class="save-btn" style="flex: 1;">💾 Save Keys</button>
+                        </div>
+                        <small style="color: var(--text-secondary); font-size: 11px;">💡 Bisa banyak key, pisah pakai
+                            Enter atau koma</small>
                     </div>
                     <div class="api-helper-row">
                         <a href="https://aistudio.google.com/apikey" target="_blank" class="btn-helper">🔑 Get API
