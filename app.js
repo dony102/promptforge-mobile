@@ -800,6 +800,19 @@ async function callGeminiAPI(imageDataUrl, options) {
     const mimeType = `image/${base64Match[1]}`;
     const base64Data = base64Match[2];
 
+    // Run detectors BEFORE API call (like Extension)
+    const cs = await detectCopySpace(imageDataUrl);
+    const cut = await detectCutoutOrCheckerboard(imageDataUrl);
+
+    // Dynamic hints based on detection (matching Extension)
+    const copyspaceHint = cs?.isCopySpace && cs.side
+        ? `\n\nIMPORTANT: This image appears to have significant copy space on the ${cs.side}. Include "copy space on the ${cs.side}" in your prompt.`
+        : '';
+
+    const cutoutHint = cut?.cutout || cut?.checker
+        ? '\n\nIMPORTANT: This image appears to be a product cutout/isolated subject. Describe it as "isolated on white background".'
+        : '';
+
     // Build system prompt based on output format (matching Extension quality)
     let systemPrompt;
 
@@ -881,6 +894,10 @@ OUTPUT FORMAT:
 - Prioritize visual richness and concrete descriptors over generic terms
 - Make it suitable for professional AI image generators`;
     }
+
+    // Append dynamic detection hints (matching Extension behavior)
+    systemPrompt += copyspaceHint;
+    systemPrompt += cutoutHint;
 
     // Add style and aspect ratio hints
     if (options.style) {
