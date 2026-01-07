@@ -258,7 +258,10 @@ async function activateLicense() {
         state.licenseValid = true;
         status.innerHTML = '<span style="color:#a6e3a1">✅ License activated successfully!</span>';
         showToast('License activated! 🎉', 'success');
-        setTimeout(() => setUILocked(false), 1000);
+        setTimeout(() => {
+            setUILocked(false);
+            updateGenerateButton();
+        }, 1000);
     } else {
         status.innerHTML = '<span style="color:#f38ba8">❌ Invalid license key</span>';
         showToast('Invalid license key', 'error');
