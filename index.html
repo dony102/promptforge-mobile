@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#1e1e2e">
+    <meta name="theme-color" content="#0a0a1a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="PromptForge">
@@ -18,237 +18,223 @@
 
 <body>
     <!-- App Header -->
-    <header class="app-header">
-        <h1 class="app-title">⚡ PromptForge</h1>
-        <p class="app-subtitle">AI Prompt Generator • Mobile</p>
-        <button id="btnSettings" class="btn-settings" title="Settings">⚙️</button>
-    </header>
+    <div class="app-header">
+        <h1 class="app-title">PromptForge</h1>
+        <p class="app-subtitle">AI Prompt Generator • Creator: <span class="creator-name">Muhammad Anggi</span></p>
+    </div>
 
-    <!-- Main Content -->
-    <main id="mainContent" class="main-content">
-        <!-- API Settings Card (Collapsible) -->
-        <section id="settingsCard" class="card settings-card collapsed">
-            <div class="card-header" id="settingsToggle">
-                <h2>🔮 API Settings</h2>
-                <span class="toggle-icon">▼</span>
-            </div>
-            <div class="card-body">
-                <div class="form-group">
-                    <label for="geminiKey">Gemini API Key</label>
-                    <div class="input-row">
-                        <input type="password" id="geminiKey" class="form-input" placeholder="Paste Gemini API key...">
-                        <button id="btnToggleKey" class="btn-icon">👁️</button>
+    <!-- Tabs -->
+    <div class="ae-tabs" id="aeTabs">
+        <div class="ae-tab is-active" data-target="pgTab">PromptForge</div>
+        <div class="ae-tab" data-target="historyTab">📜 History</div>
+        <div class="ae-tab" data-target="extractorTab">Extractor</div>
+        <button id="btnThemeToggle" class="theme-toggle" title="Toggle Dark/Light Mode">☀️☀️</button>
+    </div>
+
+    <!-- Tab 1: PromptForge -->
+    <div id="pgTab" class="ae-panel is-active">
+        <main class="wrap">
+            <!-- API SETTINGS Section -->
+            <div class="section-card">
+                <div class="section-label" id="providerToggle">
+                    ⚙️ API SETTINGS <span class="toggle-arrow">▼</span>
+                </div>
+                <div id="providerBody" class="provider-body" style="display:none">
+                    <!-- Gemini -->
+                    <div class="api-row">
+                        <label class="api-label">
+                            <input type="radio" name="provider" value="gemini" checked>
+                            <span class="provider-name">🔮 Gemini</span>
+                        </label>
+                        <select id="geminiModel" class="model-select">
+                            <option value="gemini-2.5-flash-lite">2.5 Flash Lite</option>
+                            <option value="gemini-2.5-flash">2.5 Flash</option>
+                            <option value="gemini-2.0-flash">2.0 Flash</option>
+                        </select>
                     </div>
-                    <small><a href="https://aistudio.google.com/apikey" target="_blank">🔑 Get API Key</a></small>
+                    <div class="api-input-row">
+                        <input type="password" id="geminiKey" placeholder="Paste Gemini API key...">
+                        <button id="btnToggleKey" class="btn-icon">👁️</button>
+                        <button id="btnSaveSettings" class="save-btn">💾</button>
+                    </div>
+                    <div class="api-helper-row">
+                        <a href="https://aistudio.google.com/apikey" target="_blank" class="btn-helper">🔑 Get API
+                            Key</a>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="geminiModel">Model</label>
-                    <select id="geminiModel" class="form-select">
-                        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                        <option value="gemini-2.5-flash-lite" selected>Gemini 2.5 Flash Lite</option>
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                    </select>
-                </div>
-                <button id="btnSaveSettings" class="btn-save">💾 Save Settings</button>
-            </div>
-        </section>
-
-        <!-- Image Capture Section -->
-        <section class="card capture-card">
-            <h2 class="card-title">📷 Capture Image</h2>
-
-            <!-- Camera/Gallery buttons -->
-            <div class="capture-buttons">
-                <label class="capture-btn camera">
-                    📸 Camera
-                    <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
-                </label>
-                <label class="capture-btn gallery">
-                    🖼️ Gallery
-                    <input type="file" id="galleryInput" accept="image/*" hidden>
-                </label>
-                <button id="btnPaste" class="capture-btn paste">📋 Paste</button>
             </div>
 
-            <!-- URL Extractor -->
-            <div class="url-extractor">
-                <div class="url-row">
-                    <input type="text" id="urlInput" class="form-input" placeholder="Paste YouTube/Image URL...">
-                    <button id="btnExtractUrl" class="btn-extract">🔗</button>
+            <!-- CAPTURE SECTION -->
+            <div class="section-card">
+                <div class="section-label">CAPTURE SECTION</div>
+                <div class="capture-instruction">
+                    <div class="instruction-box">
+                        <div class="instruction-title">📷 Cara Screenshot:</div>
+                        <div class="instruction-step">1. Tekan <kbd>Win</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></div>
+                        <div class="instruction-step">2. Pilih area atau fullscreen</div>
+                        <div class="instruction-step">3. Kembali ke sini, tekan <kbd>Ctrl</kbd> + <kbd>V</kbd></div>
+                    </div>
+                    <div class="capture-row">
+                        <button id="btnPaste" class="paste-btn">📋 Paste</button>
+                        <label class="file-btn">
+                            📁 Upload
+                            <input id="fileInput" type="file" accept="image/*" hidden>
+                        </label>
+                        <!-- Mobile Camera -->
+                        <label class="camera-btn">
+                            📸 Camera
+                            <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
+                        </label>
+                    </div>
+                    <!-- URL Extractor -->
+                    <div class="url-extractor-section">
+                        <div class="url-extractor-label">🔗 Extract from URL:</div>
+                        <div class="url-extractor-row">
+                            <input type="text" id="urlInput" class="url-input"
+                                placeholder="Paste YouTube, Pinterest, IG, FB URL...">
+                            <button id="btnExtractUrl" class="btn-extract-url">🖼️ Extract</button>
+                        </div>
+                        <div id="urlStatus" class="url-extract-status"></div>
+                    </div>
                 </div>
-                <div id="urlStatus" class="url-status"></div>
             </div>
 
-            <!-- Image Preview -->
+            <!-- Preview -->
             <div id="preview" class="preview">
-                <div class="placeholder">
-                    <span class="placeholder-icon">🖼️</span>
-                    <span>Tap Camera or Gallery to add image</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- Generation Options -->
-        <section class="card options-card">
-            <h2 class="card-title">⚙️ Options</h2>
-
-            <!-- Template Preset -->
-            <div class="form-group full-width">
-                <label for="templatePreset">📋 Template Preset</label>
-                <select id="templatePreset" class="form-select">
-                    <option value="">(custom settings)</option>
-                    <option value="product">🛍️ Product Photography</option>
-                    <option value="character">👤 Character Design</option>
-                    <option value="logo">🎨 Logo / Icon Design</option>
-                    <option value="landscape">🏞️ Landscape / Scene</option>
-                    <option value="portrait">📷 Portrait / Headshot</option>
-                    <option value="anime">🎌 Anime / Illustration</option>
-                </select>
+                <div class="placeholder">No image yet.<br>Press <kbd>Win+Shift+S</kbd> then <kbd>Ctrl+V</kbd> here</div>
             </div>
 
-            <div class="options-grid">
-                <div class="form-group">
-                    <label for="numPrompts">Jumlah Output</label>
-                    <select id="numPrompts" class="form-select">
-                        <option value="1">1</option>
-                        <option value="2" selected>2</option>
-                        <option value="3">3</option>
-                        <option value="5">5</option>
-                        <option value="10">10</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="maxChars">Max Karakter</label>
-                    <input type="number" id="maxChars" class="form-input" value="250" min="50" max="500">
-                </div>
-                <div class="form-group">
-                    <label for="aspectRatio">Aspect Ratio</label>
-                    <select id="aspectRatio" class="form-select">
-                        <option value="">(none)</option>
-                        <option value="16:9">16:9</option>
-                        <option value="9:16">9:16 (Portrait)</option>
-                        <option value="5:3">5:3</option>
-                        <option value="4:3">4:3</option>
-                        <option value="3:2">3:2</option>
-                        <option value="1:1">1:1 (Square)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="styleSelect">Style</label>
-                    <select id="styleSelect" class="form-select">
-                        <option value="">(natural)</option>
-                        <option value="cinematic">🎬 Cinematic</option>
+            <!-- ACTION SECTION -->
+            <div class="section-card">
+                <div class="section-label">ACTION SECTION</div>
+
+                <!-- Template Preset -->
+                <div class="template-row">
+                    <label>📋 Template:</label>
+                    <select id="templatePreset" class="template-select">
+                        <option value="">(custom)</option>
+                        <option value="product">🛍️ Product</option>
+                        <option value="character">👤 Character</option>
+                        <option value="logo">🎨 Logo</option>
+                        <option value="landscape">🏞️ Landscape</option>
+                        <option value="portrait">📷 Portrait</option>
                         <option value="anime">🎌 Anime</option>
-                        <option value="realistic">📷 Realistic</option>
-                        <option value="minimalist">✨ Minimalist</option>
-                        <option value="vintage">📼 Vintage</option>
-                        <option value="fantasy">🐉 Fantasy</option>
-                        <option value="scifi">🚀 Sci-Fi</option>
-                        <option value="watercolor">🎨 Watercolor</option>
-                        <option value="oilpainting">🖌️ Oil Painting</option>
-                        <option value="3d">💎 3D Render</option>
                     </select>
                 </div>
-            </div>
 
-            <!-- Prefix & Parameters -->
-            <div class="options-grid">
-                <div class="form-group">
-                    <label for="prefixInput">Prefix</label>
-                    <input type="text" id="prefixInput" class="form-input" placeholder="/imagine:">
+                <!-- Generate Row -->
+                <div class="action-generate-row">
+                    <div class="output-count-box">
+                        <span class="output-label">Output</span>
+                        <select id="numPrompts" class="output-select">
+                            <option value="1">1</option>
+                            <option value="2" selected>2</option>
+                            <option value="3">3</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+                    <button id="btnGenerate" class="generate-btn" disabled>▶ Generate Prompts</button>
                 </div>
-                <div class="form-group">
-                    <label for="extraParams">Parameter</label>
-                    <input type="text" id="extraParams" class="form-input" placeholder="--style raw --no human">
+
+                <!-- Control Row -->
+                <div class="action-controls-row">
+                    <button id="btnPause" class="btn-control btn-pause" disabled>⏸ Pause</button>
+                    <button id="btnStop" class="btn-control btn-stop" disabled>⏹ Stop</button>
+                    <button id="btnCopyAll" class="btn-control btn-copy">Copy All</button>
+                </div>
+
+                <!-- Export Row -->
+                <div class="action-export-row">
+                    <select id="exportFormat" class="export-format-select">
+                        <option value="json">📋 JSON</option>
+                        <option value="txt">📄 TXT</option>
+                        <option value="csv">📊 CSV</option>
+                    </select>
+                    <button id="btnExport" class="btn-export">📥 Export</button>
+                    <button id="btnClear" class="btn-clear">🗑️ Clear</button>
                 </div>
             </div>
-        </section>
 
-        <!-- Generate Button -->
-        <button id="btnGenerate" class="btn-generate" disabled>
-            <span class="btn-text">✨ Generate Prompts</span>
-            <span class="btn-loading" style="display:none">⏳ Generating...</span>
-        </button>
-
-        <!-- Progress -->
-        <div id="progressSection" class="progress-section" style="display:none">
-            <div class="progress-bar">
-                <div id="progressFill" class="progress-fill"></div>
+            <!-- OUTPUT SECTION -->
+            <div class="section-card">
+                <div class="section-label">OUTPUT SECTION</div>
+                <div class="progress-row">
+                    <span id="progressCount">0</span>
+                    <div class="progress-bar-container">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                    <span id="progressPct">0%</span>
+                </div>
+                <div class="output-table">
+                    <div class="output-header-row">
+                        <span class="col-no">No</span>
+                        <span class="col-prompt">Prompt</span>
+                        <span class="col-copy">Copy</span>
+                    </div>
+                    <div id="outputList" class="output-list"></div>
+                </div>
             </div>
-            <div id="progressText" class="progress-text">0 / 0</div>
+
+            <!-- Footer -->
+            <footer class="marquee">
+                <span>© Copyright by Muhammad Anggi — © Copyright by Muhammad Anggi — </span>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Tab 2: History -->
+    <div id="historyTab" class="ae-panel">
+        <div class="history-header">
+            <input type="text" id="historySearch" placeholder="🔍 Search prompts..." class="history-search">
+            <label class="history-fav-filter">
+                <input type="checkbox" id="historyShowFavs"> ⭐ Favorites only
+            </label>
         </div>
+        <div class="history-actions">
+            <button id="btnClearHistory" class="btn-danger">🗑️ Clear All</button>
+            <button id="btnExportHistory" class="btn-primary">📤 Export</button>
+        </div>
+        <div id="historyList" class="history-list">
+            <div class="history-empty">No history yet. Generate some prompts!</div>
+        </div>
+    </div>
 
-        <!-- Output Section -->
-        <section id="outputSection" class="card output-card" style="display:none">
-            <div class="output-header">
-                <h2 class="card-title">📝 Generated Prompts</h2>
-                <div class="output-actions">
-                    <button id="btnCopyAll" class="btn-action">📋 Copy All</button>
-                    <button id="btnClear" class="btn-action danger">🗑️</button>
-                </div>
-            </div>
-            <div id="promptsList" class="prompts-list"></div>
-
-            <!-- Export Row -->
-            <div class="export-row">
-                <select id="exportFormat" class="export-select">
-                    <option value="json">📋 JSON</option>
-                    <option value="txt">📄 TXT</option>
-                    <option value="csv">📊 CSV</option>
-                </select>
-                <button id="btnExport" class="btn-export">📥 Export</button>
-            </div>
-        </section>
-
-        <!-- History Section -->
-        <section class="card history-card">
-            <div class="history-header">
-                <h2 class="card-title">📜 History</h2>
-                <button id="btnClearHistory" class="btn-clear-history">🗑️</button>
-            </div>
-            <div id="historyList" class="history-list">
-                <p class="empty-history">No history yet</p>
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer -->
-    <footer class="app-footer">
-        <p>© 2026 Muhammad Anggi - PromptForge Mobile</p>
-    </footer>
+    <!-- Tab 3: Extractor -->
+    <div id="extractorTab" class="ae-panel">
+        <button id="btnExtractAlts" class="btn-extract-alts">Extract Alts</button>
+        <button id="btnCopyExtracted" class="btn-copy-extracted">Copy to Clipboard</button>
+        <textarea id="extractorEditor" class="extractor-editor" placeholder="Results here (editable)…"></textarea>
+        <div id="extractorStatus" class="extractor-status"></div>
+    </div>
 
     <!-- Toast -->
     <div id="toast" class="toast"></div>
 
-    <!-- License Activation Modal -->
+    <!-- License Modal -->
     <div id="licenseModal" class="license-modal" style="display:none">
         <div class="license-modal-box">
             <div class="license-modal-header">
                 <h2>🔐 PromptForge License</h2>
                 <p>Activate your license to use this app</p>
             </div>
-
             <div class="license-modal-body">
                 <div class="license-field">
                     <label>Your Device ID:</label>
                     <div class="machine-id-row">
                         <code id="machineIdDisplay">Loading...</code>
-                        <button id="btnCopyMachineId" class="btn-copy-id" title="Copy Device ID">📋</button>
+                        <button id="btnCopyMachineId" class="btn-copy-id">📋</button>
                     </div>
                     <small>Send this ID to admin to get your license key</small>
                 </div>
-
                 <div class="license-field">
                     <label>License Key:</label>
                     <input type="text" id="licenseKeyInput" class="license-input"
                         placeholder="PF-XXXX-XXXX-XXXX-XXXX-XXXX">
                 </div>
-
                 <div id="licenseStatus" class="license-status"></div>
-
                 <button id="btnActivateLicense" class="btn-activate">✅ Activate License</button>
             </div>
-
             <div class="license-modal-footer">
                 <small>© 2026 Muhammad Anggi - PromptForge</small>
             </div>

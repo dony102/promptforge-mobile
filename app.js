@@ -563,13 +563,13 @@ function updateGenerateButton() {
     btn.disabled = !hasImage || !hasApiKey || state.isGenerating || !hasLicense;
 
     if (!hasLicense) {
-        btn.querySelector('.btn-text').textContent = '🔒 Activate License First';
+        btn.textContent = '🔒 Activate License';
     } else if (!hasApiKey) {
-        btn.querySelector('.btn-text').textContent = '⚠️ Set API Key First';
+        btn.textContent = '⚠️ Set API Key';
     } else if (!hasImage) {
-        btn.querySelector('.btn-text').textContent = '📷 Add Image First';
+        btn.textContent = '📷 Add Image';
     } else {
-        btn.querySelector('.btn-text').textContent = '✨ Generate Prompts';
+        btn.textContent = '▶ Generate Prompts';
     }
 }
 
@@ -577,37 +577,40 @@ async function generatePrompts() {
     if (state.isGenerating || !state.imageDataUrl || !state.licenseValid) return;
 
     const numPrompts = parseInt(el('numPrompts').value) || 2;
-    const maxChars = parseInt(el('maxChars').value) || 250;
-    const aspectRatio = el('aspectRatio').value;
-    const style = el('styleSelect').value;
-    const extraParams = el('extraParams').value.trim();
+    const templatePreset = el('templatePreset')?.value;
+
+    // Get preset config or use defaults
+    const preset = TEMPLATE_PRESETS[templatePreset] || {};
+    const maxChars = 250;
+    const aspectRatio = preset.aspectRatio || '';
+    const style = preset.style || '';
+    const extraParams = preset.params || '';
 
     state.isGenerating = true;
     state.prompts = [];
 
-    el('btnGenerate').disabled = true;
-    el('btnGenerate').querySelector('.btn-text').style.display = 'none';
-    el('btnGenerate').querySelector('.btn-loading').style.display = 'inline';
+    const btn = el('btnGenerate');
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating...';
 
-    el('progressSection').style.display = 'block';
-    el('outputSection').style.display = 'block';
-    el('promptsList').innerHTML = '';
-
-    const progressFill = el('progressFill');
-    const progressText = el('progressText');
+    el('outputList').innerHTML = '';
+    el('progressBar').style.width = '0%';
+    el('progressCount').textContent = '0';
+    el('progressPct').textContent = '0%';
 
     try {
         for (let i = 0; i < numPrompts; i++) {
-            const percent = ((i + 1) / numPrompts) * 100;
-            progressFill.style.width = `${percent}%`;
-            progressText.textContent = `${i + 1} / ${numPrompts}`;
+            const percent = Math.round(((i + 1) / numPrompts) * 100);
+            el('progressBar').style.width = `${percent}%`;
+            el('progressCount').textContent = `${i + 1}`;
+            el('progressPct').textContent = `${percent}%`;
 
             const promptText = await callGeminiAPI(state.imageDataUrl, {
                 maxChars, aspectRatio, style, extraParams
             });
 
             state.prompts.push(promptText);
-            addPromptToList(i + 1, promptText);
+            addPromptToOutputTable(i + 1, promptText);
 
             if (i < numPrompts - 1) {
                 await new Promise(r => setTimeout(r, 1000));
@@ -622,21 +625,20 @@ async function generatePrompts() {
         console.error('Generation error:', err);
     } finally {
         state.isGenerating = false;
-        el('btnGenerate').querySelector('.btn-text').style.display = 'inline';
-        el('btnGenerate').querySelector('.btn-loading').style.display = 'none';
+        btn.textContent = '▶ Generate Prompts';
         updateGenerateButton();
     }
 }
 
-function addPromptToList(number, text) {
+function addPromptToOutputTable(number, text) {
     const item = document.createElement('div');
-    item.className = 'prompt-item';
+    item.className = 'output-item';
     item.innerHTML = `
-    <span class="prompt-number">#${number}</span>
-    <button class="prompt-copy" onclick="copyPrompt(${number - 1})">📋 Copy</button>
-    <p class="prompt-text">${escapeHtml(text)}</p>
-  `;
-    el('promptsList').appendChild(item);
+        <span class="col-no">${number}</span>
+        <span class="col-prompt">${escapeHtml(text)}</span>
+        <span class="col-copy"><button onclick="copyPrompt(${number - 1})">Copy</button></span>
+    `;
+    el('outputList').appendChild(item);
 }
 
 function escapeHtml(text) {
@@ -665,9 +667,10 @@ async function copyAllPrompts() {
 
 function clearOutput() {
     state.prompts = [];
-    el('promptsList').innerHTML = '';
-    el('outputSection').style.display = 'none';
-    el('progressSection').style.display = 'none';
+    el('outputList').innerHTML = '';
+    el('progressBar').style.width = '0%';
+    el('progressCount').textContent = '0';
+    el('progressPct').textContent = '0%';
 }
 
 // ========================================
@@ -844,18 +847,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderHistory();
     updateGenerateButton();
 
-    // Settings toggle
-    el('settingsToggle').addEventListener('click', () => {
-        el('settingsCard').classList.toggle('collapsed');
+    // Tab switching
+    document.querySelectorAll('.ae-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetId = tab.dataset.target;
+            if (!targetId) return;
+
+            // Update tabs
+            document.querySelectorAll('.ae-tab').forEach(t => t.classList.remove('is-active'));
+            tab.classList.add('is-active');
+
+            // Update panels
+            document.querySelectorAll('.ae-panel').forEach(p => p.classList.remove('is-active'));
+            el(targetId)?.classList.add('is-active');
+        });
     });
 
-    el('btnSettings').addEventListener('click', () => {
-        el('settingsCard').classList.toggle('collapsed');
-        el('settingsCard').scrollIntoView({ behavior: 'smooth' });
+    // Provider toggle (API Settings)
+    el('providerToggle')?.addEventListener('click', () => {
+        const body = el('providerBody');
+        const arrow = el('providerToggle').querySelector('.toggle-arrow');
+        if (body.style.display === 'none') {
+            body.style.display = 'block';
+            arrow.textContent = '▲';
+        } else {
+            body.style.display = 'none';
+            arrow.textContent = '▼';
+        }
     });
 
     // API key visibility toggle
-    el('btnToggleKey').addEventListener('click', () => {
+    el('btnToggleKey')?.addEventListener('click', () => {
         const input = el('geminiKey');
         const btn = el('btnToggleKey');
         if (input.type === 'password') {
@@ -868,40 +890,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Save settings
-    el('btnSaveSettings').addEventListener('click', saveSettings);
+    el('btnSaveSettings')?.addEventListener('click', saveSettings);
 
-    // Image inputs
-    el('cameraInput').addEventListener('change', async (e) => {
+    // Image inputs - File upload
+    el('fileInput')?.addEventListener('change', async (e) => {
         if (e.target.files[0]) {
             await handleImageFile(e.target.files[0]);
         }
     });
 
-    el('galleryInput').addEventListener('change', async (e) => {
+    // Camera input (for mobile)
+    el('cameraInput')?.addEventListener('change', async (e) => {
         if (e.target.files[0]) {
             await handleImageFile(e.target.files[0]);
         }
     });
 
-    el('btnPaste').addEventListener('click', handlePaste);
+    // Paste button
+    el('btnPaste')?.addEventListener('click', handlePaste);
 
     // URL extraction
-    el('btnExtractUrl').addEventListener('click', extractImageFromUrl);
-    el('urlInput').addEventListener('keypress', (e) => {
+    el('btnExtractUrl')?.addEventListener('click', extractImageFromUrl);
+    el('urlInput')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') extractImageFromUrl();
     });
 
     // Generate
-    el('btnGenerate').addEventListener('click', generatePrompts);
+    el('btnGenerate')?.addEventListener('click', generatePrompts);
 
     // Copy all
-    el('btnCopyAll').addEventListener('click', copyAllPrompts);
+    el('btnCopyAll')?.addEventListener('click', copyAllPrompts);
 
     // Clear output
-    el('btnClear').addEventListener('click', clearOutput);
+    el('btnClear')?.addEventListener('click', clearOutput);
 
     // Clear history
-    el('btnClearHistory').addEventListener('click', clearHistory);
+    el('btnClearHistory')?.addEventListener('click', clearHistory);
 
     // Template preset
     el('templatePreset')?.addEventListener('change', (e) => {
@@ -910,6 +934,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Export button
     el('btnExport')?.addEventListener('click', exportPrompts);
+
+    // Export history
+    el('btnExportHistory')?.addEventListener('click', () => {
+        const history = getHistory();
+        if (history.length === 0) {
+            showToast('No history to export', 'error');
+            return;
+        }
+        const content = JSON.stringify(history, null, 2);
+        downloadFile(content, 'promptforge-history.json', 'application/json');
+        showToast('History exported!', 'success');
+    });
 
     // License handlers
     el('btnCopyMachineId')?.addEventListener('click', copyMachineId);
