@@ -520,25 +520,86 @@ async function copyMachineId() {
 }
 
 // ========================================
+// API Keys List Management
+// ========================================
+let __geminiKeys = [];
+
+function renderGeminiKeysList() {
+    const container = el('geminiKeysList');
+    if (!container) return;
+
+    if (__geminiKeys.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 12px; padding: 8px;">No API keys yet. Add one below.</div>';
+        return;
+    }
+
+    container.innerHTML = __geminiKeys.map((key, idx) => {
+        const masked = key.slice(0, 8) + '...' + key.slice(-4);
+        return `
+            <div class="api-key-item" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-bg); border-radius: 8px; margin-bottom: 4px; border: 1px solid var(--border);">
+                <span style="color: var(--text-secondary); font-size: 12px;">#${idx + 1}</span>
+                <code style="flex: 1; font-size: 12px; color: var(--text);">${masked}</code>
+                <button onclick="removeGeminiKey(${idx})" style="background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Remove key">🗑️</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function addGeminiKey() {
+    const input = el('newGeminiKeyInput');
+    const key = input.value.trim();
+
+    if (!key) {
+        showToast('Please paste an API key first', 'error');
+        return;
+    }
+
+    if (key.length < 20) {
+        showToast('Invalid API key format', 'error');
+        return;
+    }
+
+    if (__geminiKeys.includes(key)) {
+        showToast('This key is already added', 'error');
+        return;
+    }
+
+    __geminiKeys.push(key);
+    localStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, __geminiKeys.join(','));
+
+    input.value = '';
+    renderGeminiKeysList();
+    updateGenerateButton();
+    showToast('API key added! ✅', 'success');
+}
+
+function removeGeminiKey(index) {
+    __geminiKeys.splice(index, 1);
+    localStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, __geminiKeys.join(','));
+    renderGeminiKeysList();
+    updateGenerateButton();
+    showToast('API key removed', 'success');
+}
+
+function loadKeysFromStorage() {
+    const stored = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) || '';
+    __geminiKeys = stored.split(/[,\n]+/).map(k => k.trim()).filter(k => k.length > 10);
+    renderGeminiKeysList();
+}
+
+// ========================================
 // Settings Management
 // ========================================
 function loadSettings() {
-    const key = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) || '';
+    loadKeysFromStorage();
     const model = localStorage.getItem(CONFIG.STORAGE_KEYS.MODEL) || 'gemini-2.5-flash-lite';
-
-    el('geminiKey').value = key;
     el('geminiModel').value = model;
-
     updateGenerateButton();
 }
 
 function saveSettings() {
-    const key = el('geminiKey').value.trim();
     const model = el('geminiModel').value;
-
-    localStorage.setItem(CONFIG.STORAGE_KEYS.API_KEY, key);
     localStorage.setItem(CONFIG.STORAGE_KEYS.MODEL, model);
-
     showToast('Settings saved! ✅', 'success');
     updateGenerateButton();
 
@@ -1372,6 +1433,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.key === 'Enter') activateLicense();
     });
 
+    // API Key management
+    el('btnAddGeminiKey')?.addEventListener('click', addGeminiKey);
+    el('newGeminiKeyInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addGeminiKey();
+    });
+
     // Global paste listener
     document.addEventListener('paste', async (e) => {
         const items = e.clipboardData?.items;
@@ -1396,3 +1463,4 @@ window.copyPrompt = copyPrompt;
 window.loadHistory = loadHistory;
 window.copyMachineId = copyMachineId;
 window.activateLicense = activateLicense;
+window.removeGeminiKey = removeGeminiKey;
