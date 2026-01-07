@@ -624,13 +624,32 @@ OUTPUT FORMAT:
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
         throw new Error('No response from API');
     }
 
-    return text.trim();
+    // Process based on output format
+    if (options.outputFormat === 'json') {
+        // Clean markdown code blocks if present
+        let jsonText = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+        // Try to extract JSON object
+        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            try {
+                JSON.parse(jsonMatch[0]); // Validate it's valid JSON
+                return jsonMatch[0];
+            } catch (e) {
+                return jsonText || text; // Return whatever we have
+            }
+        }
+        return jsonText || text;
+    }
+
+    // For TXT format, extract first line only (clean paragraph)
+    const line = (text || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean)[0] || "";
+    return line;
 }
 
 // ========================================
