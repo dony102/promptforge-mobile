@@ -970,7 +970,8 @@ OUTPUT FORMAT:
             }
 
             const data = await response.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            // Join ALL parts like Extension does (fixes truncation)
+            const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "";
 
             if (!text) {
                 lastError = new Error('Empty response from API');
