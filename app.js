@@ -529,17 +529,17 @@ function renderGeminiKeysList() {
     if (!container) return;
 
     if (__geminiKeys.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 12px; padding: 8px;">No API keys yet. Add one below.</div>';
+        container.innerHTML = '<div class="api-keys-empty" style="color: var(--text-muted); font-size: 12px; padding: 12px; text-align: center;">No API keys yet. Add one below.</div>';
         return;
     }
 
     container.innerHTML = __geminiKeys.map((key, idx) => {
-        const masked = key.slice(0, 8) + '...' + key.slice(-4);
+        const masked = key.slice(0, 10) + '...' + key.slice(-6);
         return `
-            <div class="api-key-item" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--card-bg); border-radius: 8px; margin-bottom: 4px; border: 1px solid var(--border);">
-                <span style="color: var(--text-secondary); font-size: 12px;">#${idx + 1}</span>
-                <code style="flex: 1; font-size: 12px; color: var(--text);">${masked}</code>
-                <button onclick="removeGeminiKey(${idx})" style="background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Remove key">🗑️</button>
+            <div class="api-key-item">
+                <span class="key-number">#${idx + 1}</span>
+                <code class="key-value">${masked}</code>
+                <button class="btn-remove" onclick="removeGeminiKey(${idx})" title="Remove key">🗑️</button>
             </div>
         `;
     }).join('');

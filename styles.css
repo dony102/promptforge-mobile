@@ -251,19 +251,133 @@ body {
     border-color: var(--accent-green);
 }
 
+/* ========================================
+   API Keys List - Premium Multi-Key UI
+======================================== */
+.api-keys-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.api-key-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: 10px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-xs);
+    transition: all 0.2s ease;
+}
+
+.api-key-item:hover {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 8px rgba(159, 122, 234, 0.2);
+}
+
+.api-key-item .key-number {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 24px;
+}
+
+.api-key-item .key-value {
+    flex: 1;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 12px;
+    color: var(--accent-cyan);
+}
+
+.api-key-item .btn-remove {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.api-key-item .btn-remove:hover {
+    opacity: 1;
+}
+
+.api-add-key-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.api-add-key-row input,
+.api-key-input {
+    flex: 1;
+    padding: 12px 14px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.api-add-key-row input:focus,
+.api-key-input:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 3px rgba(159, 122, 234, 0.2);
+    outline: none;
+}
+
+.btn-add-key {
+    padding: 12px 20px;
+    background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-blue) 100%);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(159, 122, 234, 0.3);
+}
+
+.btn-add-key:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(159, 122, 234, 0.4);
+}
+
+.btn-add-key:active {
+    transform: translateY(0);
+}
+
 .api-helper-row {
     display: flex;
     gap: var(--spacing-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.api-helper-row .helper-tip {
+    font-size: 11px;
+    color: var(--text-muted);
 }
 
 .btn-helper {
-    padding: 6px 12px;
+    padding: 8px 14px;
     background: var(--bg-input);
     border: 1px solid var(--accent-purple);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     color: var(--accent-purple);
     font-size: 12px;
+    font-weight: 500;
     text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-helper:hover {
+    background: var(--accent-purple);
+    color: white;
 }
 
 /* ========================================
@@ -1047,5 +1161,7 @@ kbd {
 ::-webkit-scrollbar-thumb {
     background: var(--accent-purple);
     border-radius: 2px;
-}/* Deployed: %date% %time% */
+}
+
+/* Deployed: %date% %time% */
 /* Force rebuild 01/07/2026 23:12:12 */
