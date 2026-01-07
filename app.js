@@ -105,6 +105,188 @@ function formatDate(date) {
 }
 
 // ========================================
+// Text Processing Utilities (from Extension)
+// ========================================
+
+// Clamp text to max characters
+function clampToMaxChars(text, maxChars) {
+    if (!text || !maxChars || text.length <= maxChars) return text || "";
+    let out = text.slice(0, maxChars);
+    const lastSpace = out.lastIndexOf(" ");
+    if (lastSpace > maxChars * 0.6) out = out.slice(0, lastSpace);
+    return out.replace(/[\s,.;:\-–—]+$/, "").trim();
+}
+
+// Strip "copy space" / "negative space" phrases
+function stripCopySpace(line) {
+    if (!line) return line;
+    let out = line
+        .replace(/\bcopy\s*space\b(?:\s*(on|at|to|toward|towards)\s*(the)?\s*(left|right|top|bottom|center))?/gi, "")
+        .replace(/\bnegative\s*space\b/gi, "");
+    out = out.replace(/\s{2,}/g, " ").replace(/\s+,/g, ", ").replace(/,\s*,/g, ", ").replace(/,\s*$/, "").trim();
+    return out;
+}
+
+// Force white background (replace transparent mentions)
+function forceWhiteBackground(line) {
+    if (!line) return line;
+    let out = line;
+    out = out.replace(/\bon\s+(?:an?\s+)?transparent\s+background\b/gi, "on a white background");
+    out = out.replace(/\bagainst\s+(?:an?\s+)?transparent\s+background\b/gi, "against a white background");
+    out = out.replace(/\bwith\s+(?:an?\s+)?transparent\s+background\b/gi, "with a white background");
+    out = out.replace(/\btransparent\s+background\b/gi, "white background");
+    out = out.replace(/\bno\s+background\b/gi, "white background");
+    out = out.replace(/\balpha\s+background\b/gi, "white background");
+    out = out.replace(/\bclear\s+background\b/gi, "white background");
+    out = out.replace(/\bisolated(?:\s+on)?\s+(?:an?\s+)?(?:transparent|clear|alpha)\s+background\b/gi, "isolated on white background");
+    return out;
+}
+
+// Add suffix safely (respecting maxChars)
+function addSuffixSafely(line, phrase, maxChars) {
+    try {
+        if (!phrase) return clampToMaxChars(line, maxChars);
+        const re = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+        if (re.test(line)) return clampToMaxChars(line, maxChars);
+        const t = (line || "").trim();
+        const join = /[,.;:–—-]\s*$/.test(t) ? " " : ", ";
+        const need = join + phrase;
+        const budget = Math.max(0, (maxChars || 0) - need.length);
+        let core = clampToMaxChars(t, budget);
+        core = core.trim().replace(/[\s,.;:–—-]+$/g, "").trim();
+        return (core ? core + join : "") + phrase;
+    } catch (_) {
+        return clampToMaxChars(line, maxChars);
+    }
+}
+
+// ========================================
+// Image Analysis Utilities (from Extension)
+// ========================================
+
+// Convert dataURL to Blob
+async function dataUrlToBlob(dataUrl) {
+    const [meta, base64] = String(dataUrl || "").split(",");
+    const match = meta.match(/data:(.*?);base64/);
+    const mime = match ? match[1] : "image/png";
+    const bin = atob(base64 || "");
+    const len = bin.length;
+    const out = new Uint8Array(len);
+    for (let i = 0; i < len; i++) out[i] = bin.charCodeAt(i);
+    return new Blob([out], { type: mime || "application/octet-stream" });
+}
+
+// Detect copy space in image (simplified version)
+async function detectCopySpace(dataUrl) {
+    try {
+        if (!dataUrl) return { isCopySpace: false, side: null, score: 0 };
+        const blob = await dataUrlToBlob(dataUrl);
+        const bmp = await createImageBitmap(blob);
+        const W0 = bmp.width, H0 = bmp.height;
+        if (!W0 || !H0) return { isCopySpace: false, side: null, score: 0 };
+
+        const max = 256, s = Math.min(1, max / Math.max(W0, H0));
+        const W = Math.max(48, Math.round(W0 * s)), H = Math.max(48, Math.round(H0 * s));
+        const cvs = new OffscreenCanvas(W, H), ctx = cvs.getContext("2d", { alpha: false });
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(bmp, 0, 0, W, H);
+        const { data } = ctx.getImageData(0, 0, W, H);
+
+        // Convert to grayscale and compute gradient
+        const gray = new Float32Array(W * H);
+        for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
+            gray[i] = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+        }
+
+        // Simple edge detection
+        const grad = new Float32Array(W * H);
+        for (let y = 1; y < H - 1; y++) {
+            for (let x = 1; x < W - 1; x++) {
+                const i = y * W + x;
+                const gx = gray[i + 1] - gray[i - 1];
+                const gy = gray[i + W] - gray[i - W];
+                grad[i] = Math.sqrt(gx * gx + gy * gy);
+            }
+        }
+
+        // Analyze sides for low activity
+        const band = 0.35;
+        function analyzeRegion(x0, y0, x1, y1) {
+            let sum = 0, cnt = 0;
+            for (let y = y0; y < y1; y++) {
+                for (let x = x0; x < x1; x++) {
+                    sum += grad[y * W + x];
+                    cnt++;
+                }
+            }
+            return sum / (cnt || 1);
+        }
+
+        const left = analyzeRegion(0, 0, Math.round(W * band), H);
+        const right = analyzeRegion(Math.round(W * (1 - band)), 0, W, H);
+        const top = analyzeRegion(0, 0, W, Math.round(H * band));
+        const bottom = analyzeRegion(0, Math.round(H * (1 - band)), W, H);
+        const center = analyzeRegion(Math.round(W * 0.3), Math.round(H * 0.3), Math.round(W * 0.7), Math.round(H * 0.7));
+
+        const threshold = center * 0.4;
+        let side = null, minActivity = Infinity;
+        if (left < threshold && left < minActivity) { side = "left"; minActivity = left; }
+        if (right < threshold && right < minActivity) { side = "right"; minActivity = right; }
+        if (top < threshold && top < minActivity) { side = "top"; minActivity = top; }
+        if (bottom < threshold && bottom < minActivity) { side = "bottom"; minActivity = bottom; }
+
+        return { isCopySpace: !!side, side, score: side ? (center - minActivity) / center : 0 };
+    } catch (e) {
+        return { isCopySpace: false, side: null, score: 0 };
+    }
+}
+
+// Detect cutout (transparency) or checkerboard pattern
+async function detectCutoutOrCheckerboard(dataUrl) {
+    try {
+        if (!dataUrl) return { cutout: false, checker: false };
+        const blob = await dataUrlToBlob(dataUrl);
+        const bmp = await createImageBitmap(blob);
+        const W0 = bmp.width, H0 = bmp.height;
+        if (!W0 || !H0) return { cutout: false, checker: false };
+
+        const W = 192, H = Math.max(96, Math.round(H0 * (W / W0)));
+        const cvs = new OffscreenCanvas(W, H);
+        const ctx = cvs.getContext("2d", { alpha: true });
+        ctx.drawImage(bmp, 0, 0, W, H);
+        const { data } = ctx.getImageData(0, 0, W, H);
+
+        // Check for transparency
+        let alphaZero = 0, sample = 0;
+        for (let y = 0; y < H; y += 2) {
+            for (let x = 0; x < W; x += 2) {
+                const i = (y * W + x) * 4;
+                if (data[i + 3] < 10) alphaZero++;
+                sample++;
+            }
+        }
+        const cutout = alphaZero / Math.max(1, sample) > 0.25;
+
+        // Simple checkerboard detection
+        let whiteCount = 0, grayCount = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+            if (a > 240) {
+                const v = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                if (v > 245) whiteCount++;
+                else if (v > 200 && v < 220) grayCount++;
+            }
+        }
+        const total = data.length / 4;
+        const checker = (whiteCount > total * 0.1) && (grayCount > total * 0.1);
+
+        return { cutout, checker };
+    } catch (e) {
+        return { cutout: false, checker: false };
+    }
+}
+
+// ========================================
 // LICENSE SYSTEM - Device ID Based
 // ========================================
 
@@ -648,7 +830,26 @@ OUTPUT FORMAT:
     }
 
     // For TXT format, extract first line only (clean paragraph)
-    const line = (text || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean)[0] || "";
+    let line = (text || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean)[0] || "";
+
+    // Run image detectors for post-processing
+    const cs = await detectCopySpace(imageDataUrl);
+    const cut = await detectCutoutOrCheckerboard(imageDataUrl);
+
+    // Post-processing (matching Extension behavior)
+    // Strip copy space by default (no toggle in PWA)
+    line = stripCopySpace(line);
+
+    // Enforce white background for cutout/transparent images
+    if (cut.cutout || cut.checker) {
+        line = addSuffixSafely(forceWhiteBackground(line), "isolated on white background", options.maxChars);
+    } else if (/transparent\s+background/i.test(line)) {
+        line = addSuffixSafely(forceWhiteBackground(line), "isolated on white background", options.maxChars);
+    }
+
+    // Clamp to max chars
+    line = clampToMaxChars(line, options.maxChars);
+
     return line;
 }
 
