@@ -8,7 +8,10 @@
 // Configuration & State
 // ========================================
 const CONFIG = {
-    LICENSE_SECRET: 'PromptForge-2026-MAnggi-Secret',
+    LICENSE_SECRETS: [
+        'PromptForge-2026-MAnggi-Secret',  // New secret (PWA/Admin)
+        'PF2026-ANGGI-SECRET'  // Original secret (Extension)
+    ],
     STORAGE_KEYS: {
         API_KEY: 'pf_gemini_key',
         MODEL: 'pf_gemini_model',
@@ -154,9 +157,9 @@ async function generateMachineId() {
 }
 
 // Generate expected license key from machine ID (must match admin tool)
-function generateMachineHash(machineId) {
+function generateMachineHash(machineId, secret) {
     let hash = 0;
-    const combined = machineId + CONFIG.LICENSE_SECRET;
+    const combined = machineId + secret;
     for (let i = 0; i < combined.length; i++) {
         const char = combined.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
@@ -165,7 +168,7 @@ function generateMachineHash(machineId) {
     return Math.abs(hash);
 }
 
-// Validate license key format and check against machine ID
+// Validate license key format and check against machine ID (tries all secrets)
 function validateLicenseKey(machineId, licenseKey) {
     if (!machineId || !licenseKey) return false;
 
@@ -176,14 +179,19 @@ function validateLicenseKey(machineId, licenseKey) {
     const parts = cleanKey.split('-');
     if (parts.length !== 6) return false;
 
-    // Validate using hash
-    const hash = generateMachineHash(machineId);
-    const segment1 = (hash % 10000).toString().padStart(4, '0');
-    const segment2 = ((hash >> 4) % 10000).toString().padStart(4, '0');
-    const segment3 = ((hash >> 8) % 10000).toString().padStart(4, '0');
+    // Try validation with each secret
+    for (const secret of CONFIG.LICENSE_SECRETS) {
+        const hash = generateMachineHash(machineId, secret);
+        const segment1 = (hash % 10000).toString().padStart(4, '0');
+        const segment2 = ((hash >> 4) % 10000).toString().padStart(4, '0');
+        const segment3 = ((hash >> 8) % 10000).toString().padStart(4, '0');
 
-    // Check first 3 segments match
-    return parts[1] === segment1 && parts[2] === segment2 && parts[3] === segment3;
+        // Check first 3 segments match
+        if (parts[1] === segment1 && parts[2] === segment2 && parts[3] === segment3) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Check if license is valid
