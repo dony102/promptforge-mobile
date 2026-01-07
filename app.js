@@ -14,12 +14,19 @@ const CONFIG = {
     ],
     STORAGE_KEYS: {
         API_KEY: 'pf_gemini_key',
+        API_KEYS: 'pf_gemini_keys',  // Multiple keys support
         MODEL: 'pf_gemini_model',
         HISTORY: 'pf_history',
         LICENSE_KEY: 'pf_license_key',
         MACHINE_ID: 'pf_machine_id'
-    }
+    },
+    MIN_DELAY_MS: 9000,  // Minimum delay between API calls (free tier)
+    COOLDOWN_MAX_MS: 10 * 60 * 1000  // Max cooldown for rate limited keys
 };
+
+// Key rotation state
+const keyState = new Map(); // key -> {nextAt, fails}
+let lastApiCallAt = 0;
 
 let state = {
     imageDataUrl: null,
@@ -158,6 +165,60 @@ function addSuffixSafely(line, phrase, maxChars) {
     } catch (_) {
         return clampToMaxChars(line, maxChars);
     }
+}
+
+// ========================================
+// API Key Rotation Utilities (from Extension)
+// ========================================
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function waitMinDelay() {
+    const elapsed = Date.now() - lastApiCallAt;
+    const wait = Math.max(0, CONFIG.MIN_DELAY_MS - elapsed);
+    if (wait > 0) await sleep(wait);
+}
+
+function markKeyOK(key) {
+    const s = keyState.get(key) || { nextAt: 0, fails: 0 };
+    s.fails = 0;
+    s.nextAt = 0;
+    keyState.set(key, s);
+    lastApiCallAt = Date.now();
+}
+
+function markKey429(key) {
+    const s = keyState.get(key) || { nextAt: 0, fails: 0 };
+    s.fails++;
+    const cooldown = Math.min(CONFIG.COOLDOWN_MAX_MS, 30000 * s.fails);
+    s.nextAt = Date.now() + cooldown;
+    keyState.set(key, s);
+}
+
+async function pickBestKey(keys) {
+    const now = Date.now();
+    let best = null;
+
+    for (const k of keys) {
+        const st = keyState.get(k) || { nextAt: 0, fails: 0 };
+        if (st.nextAt <= now) return k;  // Available key found
+        if (!best || st.nextAt < best.nextAt) best = { ...st, key: k };
+    }
+
+    if (best) {
+        const wait = Math.max(0, best.nextAt - now);
+        if (wait > 0) await sleep(wait);
+        return best.key;
+    }
+
+    return keys[0];
+}
+
+// Get API keys (supports both single key and comma-separated multiple keys)
+function getApiKeys() {
+    const singleKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY) || '';
+    // Split by comma, newline, or space, filter empty
+    return singleKey.split(/[,\n\s]+/).map(k => k.trim()).filter(k => k.length > 10);
 }
 
 // ========================================
@@ -663,11 +724,11 @@ async function loadImageAsDataUrl(url) {
 // Gemini API Integration
 // ========================================
 async function callGeminiAPI(imageDataUrl, options) {
-    const apiKey = localStorage.getItem(CONFIG.STORAGE_KEYS.API_KEY);
+    const apiKeys = getApiKeys();
     const model = localStorage.getItem(CONFIG.STORAGE_KEYS.MODEL) || 'gemini-2.5-flash-lite';
 
-    if (!apiKey) {
-        throw new Error('Please set your Gemini API key in Settings');
+    if (!apiKeys.length) {
+        throw new Error('Please set your Gemini API key(s) in Settings');
     }
 
     const base64Match = imageDataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
@@ -789,29 +850,71 @@ OUTPUT FORMAT:
         }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-    });
+    // Retry with multiple keys
+    let attempt = 0;
+    let lastError = null;
+    const maxAttempts = apiKeys.length * 3;
 
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        if (response.status === 429) {
-            throw new Error('Rate limit exceeded. Wait a moment and try again.');
+    while (attempt < maxAttempts) {
+        attempt++;
+        const apiKey = await pickBestKey(apiKeys);
+        await waitMinDelay();
+
+        const url = `${endpoint}?key=${encodeURIComponent(apiKey)}`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (response.status === 429) {
+                markKey429(apiKey);
+                const retryAfter = Number(response.headers.get('Retry-After'));
+                const waitTime = 2000 * attempt + (retryAfter > 0 ? retryAfter * 1000 : 0);
+                await sleep(waitTime + Math.random() * 500);
+                lastError = new Error('Rate limit exceeded');
+                continue;
+            }
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                if (response.status >= 500) {
+                    await sleep(1500 + Math.random() * 600);
+                    continue;
+                }
+                markKey429(apiKey);
+                lastError = new Error(error.error?.message || `API error: ${response.status}`);
+                continue;
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!text) {
+                lastError = new Error('Empty response from API');
+                await sleep(800);
+                continue;
+            }
+
+            markKeyOK(apiKey);
+            return await processApiResponse(text, imageDataUrl, options);
+
+        } catch (e) {
+            markKey429(apiKey);
+            lastError = e;
+            await sleep(1200 + Math.random() * 500);
         }
-        throw new Error(error.error?.message || `API error: ${response.status}`);
     }
 
-    const data = await response.json();
-    let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    throw lastError || new Error('All API keys failed');
+}
 
-    if (!text) {
-        throw new Error('No response from API');
-    }
-
+// Process API response with post-processing
+async function processApiResponse(text, imageDataUrl, options) {
     // Process based on output format
     if (options.outputFormat === 'json') {
         // Clean markdown code blocks if present
@@ -823,7 +926,7 @@ OUTPUT FORMAT:
                 JSON.parse(jsonMatch[0]); // Validate it's valid JSON
                 return jsonMatch[0];
             } catch (e) {
-                return jsonText || text; // Return whatever we have
+                return jsonText || text;
             }
         }
         return jsonText || text;
@@ -837,7 +940,6 @@ OUTPUT FORMAT:
     const cut = await detectCutoutOrCheckerboard(imageDataUrl);
 
     // Post-processing (matching Extension behavior)
-    // Strip copy space by default (no toggle in PWA)
     line = stripCopySpace(line);
 
     // Enforce white background for cutout/transparent images
