@@ -1091,7 +1091,6 @@ async function generatePrompts() {
         for (let i = 0; i < numPrompts; i++) {
             const percent = Math.round(((i + 1) / numPrompts) * 100);
             el('progressBar').style.width = `${percent}%`;
-            el('progressCount').textContent = `${i + 1}`;
             el('progressPct').textContent = `${percent}%`;
 
             const promptText = await callGeminiAPI(state.imageDataUrl, {
