@@ -924,7 +924,7 @@ OUTPUT FORMAT:
         }],
         generationConfig: {
             temperature: 0.9,
-            maxOutputTokens: 500
+            maxOutputTokens: 8192  // Increased from 500 - was causing truncation!
         }
     };
 
