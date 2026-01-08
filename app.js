@@ -1646,3 +1646,28 @@ window.toggleHistoryFav = toggleHistoryFav;
 window.loadHistoryItem = loadHistoryItem;
 window.copyHistoryPrompts = copyHistoryPrompts;
 window.deleteHistoryItem = deleteHistoryItem;
+
+// Copy Output Button Handler
+document.addEventListener('DOMContentLoaded', () => {
+    const copyBtn = document.getElementById('btnCopyOutput');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', async () => {
+            const output = document.getElementById('output');
+            const text = output?.value?.trim() || '';
+            if (!text) {
+                copyBtn.textContent = '❌ Nothing to copy';
+                setTimeout(() => { copyBtn.textContent = '📋 Copy Output'; }, 2000);
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                copyBtn.textContent = '✅ Copied!';
+                showToast('Copied to clipboard! 📋', 'success');
+                setTimeout(() => { copyBtn.textContent = '📋 Copy Output'; }, 2000);
+            } catch (e) {
+                copyBtn.textContent = '❌ Copy failed';
+                setTimeout(() => { copyBtn.textContent = '📋 Copy Output'; }, 2000);
+            }
+        });
+    }
+});

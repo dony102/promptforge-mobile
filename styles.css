@@ -2907,3 +2907,28 @@ button,
   color: var(--muted);
   font-size: 14px;
 }
+
+/* Copy Output Button */
+.btn-copy-output {
+  width: 100%;
+  margin-top: 10px;
+  padding: 14px 20px;
+  background: var(--accent-gradient, linear-gradient(135deg, #6366f1, #8b5cf6));
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-copy-output:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+.btn-copy-output:active {
+  transform: translateY(0);
+}
