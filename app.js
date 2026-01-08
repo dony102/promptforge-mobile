@@ -994,20 +994,28 @@ OUTPUT FORMAT:
 
 // Process API response with post-processing
 async function processApiResponse(text, imageDataUrl, options) {
+    console.log('[PWA DEBUG] Raw API text length:', text?.length);
+    console.log('[PWA DEBUG] Raw API text (first 500 chars):', text?.substring(0, 500));
+
     // Process based on output format
     if (options.outputFormat === 'json') {
         // Clean markdown code blocks if present
         let jsonText = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+        console.log('[PWA DEBUG] Cleaned jsonText length:', jsonText?.length);
+
         // Try to extract JSON object
         const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
+            console.log('[PWA DEBUG] JSON match length:', jsonMatch[0]?.length);
             try {
                 JSON.parse(jsonMatch[0]); // Validate it's valid JSON
                 return jsonMatch[0];
             } catch (e) {
+                console.warn('[PWA DEBUG] Invalid JSON, returning raw:', e.message);
                 return jsonText || text;
             }
         }
+        console.log('[PWA DEBUG] No JSON match found, returning raw text');
         return jsonText || text;
     }
 
